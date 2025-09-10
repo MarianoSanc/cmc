@@ -1,0 +1,748 @@
+<div class="filters-container">
+  <div>
+    <ng-multiselect-dropdown
+      class="fixed-width-dropdown"
+      [settings]="dropdowncmc"
+      [placeholder]="'--Selecciona un patron--'"
+      [data]="listacmc"
+      [(ngModel)]="selectedCmc"
+      (onSelect)="selectequipment($event)"
+    >
+    </ng-multiselect-dropdown>
+  </div>
+  <div *ngIf="selectedCmc && selectedCmc.length > 0">
+    <ng-multiselect-dropdown
+      class="fixed-width-dropdown"
+      [settings]="dropdownpt"
+      [placeholder]="'--Selecciona un PT--'"
+      [data]="listapt"
+      [(ngModel)]="selectedPT"
+      (onSelect)="onPTSelect()"
+    >
+    </ng-multiselect-dropdown>
+  </div>
+  <div class="filter-item button_new">
+    <button (click)="agregarCmc()" class="custom-button">
+      Nuevo Certificado
+    </button>
+  </div>
+  <br />
+</div>
+<br />
+<div
+  *ngIf="patron && patron.length > 0 && selectedPT && selectedPT.length > 0"
+  class="patron-table-container"
+>
+  <div style="display: flex; flex-direction: column">
+    <table class="patron-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Calibration interval</th>
+          <th>Next calibration</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of patron">
+          <td>{{ item.idequipment }}</td>
+          <td>{{ item.name }}</td>
+          <td (click)="editMonth(item)" style="cursor: pointer">
+            <ng-container *ngIf="editingItem !== item; else editTpl">
+              {{ item.months }}
+            </ng-container>
+            <ng-template #editTpl>
+              <input
+                type="number"
+                [(ngModel)]="item.months"
+                (blur)="finishEditMonth(item)"
+                (keydown.enter)="finishEditMonth(item)"
+                style="width: 60px"
+              />
+            </ng-template>
+          </td>
+          <td>{{ item.next_calibration | date : "dd/MM/yyyy" }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <br />
+    <!-- TABLA DE CERTIFICADOS POR FECHA -->
+    <div class="dynamic-table-container" style="margin: 0">
+      <table class="dynamic-table">
+        <thead>
+          <tr>
+            <!-- Agrega las dos columnas si patron.length == 3 -->
+            <ng-container *ngIf="patron.length == 3">
+              <th class="std-cond-header" rowspan="3">
+                {{
+                  dcVoltageValues[0].ratio_calibration != null
+                    ? "Ratio calibrado"
+                    : "Ganancia"
+                }}
+              </th>
+              <th class="std-cond-header" rowspan="3">
+                {{
+                  dcVoltageValues[0].porcentaje_ratio != null
+                    ? "Porcentaje del ratio"
+                    : "Ratio"
+                }}
+              </th>
+            </ng-container>
+            <th [ngSwitch]="selectedPT[0]?.pt" class="dc-header">
+              <span *ngSwitchCase="'PT-23'">DC VOLTAGE MEAS.</span>
+              <span *ngSwitchCase="'PT-24'">AC VOLTAGE MEAS.</span>
+            </th>
+            <ng-container *ngFor="let group of cmcByDate | keyvalue">
+              <th class="date-header" colspan="2">
+                <ng-container *ngIf="!editingDate[group.key]; else editDateTpl">
+                  <span
+                    (click)="startEditDate(group.key)"
+                    style="cursor: pointer"
+                  >
+                    {{ group.key }}
+                  </span>
+                </ng-container>
+
+                <ng-template #editDateTpl>
+                  <input
+                    type="date"
+                    [value]="group.key"
+                    #dateInput
+                    style="width: 130px"
+                  />
+                  <button
+                    (click)="confirmEditDate({ target: dateInput }, group.key)"
+                  >
+                    ✔
+                  </button>
+                  <button (click)="cancelEditDate(group.key)">✖</button>
+                </ng-template>
+              </th>
+            </ng-container>
+          </tr>
+          <tr>
+            <th class="std-cond-header" rowspan="3">Std. condition<br />Vpk</th>
+            <ng-container *ngFor="let group of cmcByDate | keyvalue">
+              <th class="uncertainty-header">
+                Measured value <br />
+                Error
+              </th>
+              <th class="uncertainty-header">Calibration Uncertainty</th>
+            </ng-container>
+          </tr>
+          <tr></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let value of dcVoltageValues">
+            <!-- Si patron.length == 3, muestra las dos columnas -->
+            <ng-container *ngIf="patron.length == 3">
+              <td>
+                {{
+                  value.ratio_calibration != null
+                    ? value.ratio_calibration
+                    : value.ganancia
+                }}
+              </td>
+              <td>
+                {{
+                  value.porcentaje_ratio != null
+                    ? value.porcentaje_ratio
+                    : value.ratio
+                }}
+              </td>
+            </ng-container>
+            <td>{{ value.value }}</td>
+            <ng-container *ngFor="let group of cmcByDate | keyvalue">
+              <ng-container *ngIf="getCmcMatchByValue(group, value) as match">
+                <!-- ...existing code for editing existing match... -->
+                <td (click)="editMatch(match)" style="cursor: pointer">
+                  <ng-container *ngIf="!isItemBeingEdited(match); else editMtc">
+                    {{
+                      match.error === 0
+                        ? 0
+                        : (match.error || "" | number : "1.3-3")
+                    }}
+                  </ng-container>
+                  <ng-template #editMtc>
+                    <input
+                      type="number"
+                      [(ngModel)]="match.error"
+                      (blur)="finishEditMatch(match)"
+                      (keydown.enter)="finishEditMatch(match)"
+                      style="width: 60px"
+                    />
+                  </ng-template>
+                </td>
+                <td (click)="editMatch(match)" style="cursor: pointer">
+                  <ng-container
+                    *ngIf="!isItemBeingEdited(match); else editMtc2"
+                  >
+                    {{
+                      match.calibrationUncertainty === 0
+                        ? 0
+                        : (match.calibrationUncertainty || ""
+                          | number : "1.3-3")
+                    }}
+                  </ng-container>
+                  <ng-template #editMtc2>
+                    <input
+                      type="number"
+                      [(ngModel)]="match.calibrationUncertainty"
+                      (blur)="finishEditMatch(match)"
+                      (keydown.enter)="finishEditMatch(match)"
+                      style="width: 60px"
+                    />
+                  </ng-template>
+                </td>
+              </ng-container>
+              <ng-container *ngIf="!getCmcMatchByValue(group, value)">
+                <td style="background: #f9f9f9">
+                  <ng-container
+                    *ngIf="newMatchEditing[group.key]?.[getMatchKey(value)]; else addBtn1"
+                  >
+                    <input
+                      type="number"
+                      [(ngModel)]="
+                        newMatchValue[group.key][getMatchKey(value)].error
+                      "
+                      placeholder="Error"
+                      style="width: 60px"
+                      (keydown.enter)="
+                        saveNewMatch(group.key, getMatchKey(value))
+                      "
+                      autofocus
+                    />
+                    <button
+                      (click)="saveNewMatch(group.key, getMatchKey(value))"
+                      style="margin-left: 4px"
+                    >
+                      ✔
+                    </button>
+                    <button
+                      (click)="cancelNewMatch(group.key, getMatchKey(value))"
+                      style="margin-left: 2px"
+                    >
+                      ✖
+                    </button>
+                  </ng-container>
+                  <ng-template #addBtn1>
+                    <span
+                      style="color: #aaa; cursor: pointer"
+                      (click)="newMatch(group.key, getMatchKey(value))"
+                      >+</span
+                    >
+                  </ng-template>
+                </td>
+                <td style="background: #f9f9f9">
+                  <ng-container
+                    *ngIf="newMatchEditing[group.key]?.[getMatchKey(value)]; else addBtn2"
+                  >
+                    <input
+                      type="number"
+                      [(ngModel)]="
+                        newMatchValue[group.key][getMatchKey(value)].cu
+                      "
+                      placeholder="Uncertainty"
+                      style="width: 60px"
+                      (keydown.enter)="
+                        saveNewMatch(group.key, getMatchKey(value))
+                      "
+                    />
+                    <button
+                      (click)="saveNewMatch(group.key, getMatchKey(value))"
+                      style="margin-left: 4px"
+                    >
+                      ✔
+                    </button>
+                    <button
+                      (click)="cancelNewMatch(group.key, getMatchKey(value))"
+                      style="margin-left: 2px"
+                    >
+                      ✖
+                    </button>
+                  </ng-container>
+                  <ng-template #addBtn2>
+                    <span
+                      style="color: #aaa; cursor: pointer"
+                      (click)="newMatch(group.key, getMatchKey(value))"
+                      >+</span
+                    >
+                  </ng-template>
+                </td>
+              </ng-container>
+            </ng-container>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <br />
+    <!-- Fila vacía para separación visual -->
+    <div style="height: 24px"></div>
+    <!-- Mostrar tablas solo si hay al menos 2 fechas -->
+    <ng-container *ngIf="(cmcByDate | keyvalue).length >= 2">
+      <!-- Tabla de Uncertainty Components -->
+      <div class="dynamic-table-container" style="margin: 0">
+        <table class="dynamic-table">
+          <thead>
+            <tr>
+              <th
+                [attr.colspan]="patron.length == 3 ? 11 : 9"
+                class="uncertainty-title-header"
+              >
+                Uncertainty Components
+              </th>
+            </tr>
+            <tr class="std-cond-header">
+              <!-- Si patron.length == 3, muestra las columnas extra -->
+              <ng-container *ngIf="patron.length == 3">
+                <th>
+                  {{
+                    dcVoltageValues[0].ratio_calibration != null
+                      ? "Ratio calibrado"
+                      : "Ganancia"
+                  }}
+                </th>
+                <th>
+                  {{
+                    dcVoltageValues[0].porcentaje_ratio != null
+                      ? "Porcentaje del ratio"
+                      : "Ratio"
+                  }}
+                </th>
+              </ng-container>
+              <th>Std. condition<br />Vpk</th>
+              <th>Stability[%]</th>
+              <th>BIAS[%]</th>
+              <th>Drift[%]</th>
+              <th>Reference Standard Uncertainty[%]</th>
+              <th>Reference Standard Stability[%]</th>
+              <th>Repeatability[%]</th>
+              <th>Reproducibility[%]</th>
+            </tr>
+            <tr class="std-cond-header">
+              <!-- Si patron.length == 3, celdas vacías para alineación -->
+              <ng-container *ngIf="patron.length == 3">
+                <th></th>
+                <th></th>
+              </ng-container>
+              <th>Sensitivity Coefficient (ci)</th>
+              <td
+                (click)="
+                  editingCi !== 'stability' ? (editingCi = 'stability') : null
+                "
+                style="cursor: pointer"
+              >
+                <ng-container
+                  *ngIf="editingCi !== 'stability'; else editStabilityCi"
+                >
+                  {{ components[0]?.stability_ci }}
+                </ng-container>
+                <ng-template #editStabilityCi>
+                  <input
+                    type="number"
+                    [(ngModel)]="components[0].stability_ci"
+                    (blur)="finishEditCi('stability')"
+                    (keydown.enter)="finishEditCi('stability')"
+                    style="width: 60px"
+                  />
+                </ng-template>
+              </td>
+              <td
+                (click)="editingCi !== 'bias' ? (editingCi = 'bias') : null"
+                style="cursor: pointer"
+              >
+                <ng-container *ngIf="editingCi !== 'bias'; else editBiasCi">
+                  {{ components[0]?.bias_ci }}
+                </ng-container>
+                <ng-template #editBiasCi>
+                  <input
+                    type="number"
+                    [(ngModel)]="components[0].bias_ci"
+                    (blur)="finishEditCi('bias')"
+                    (keydown.enter)="finishEditCi('bias')"
+                    style="width: 60px"
+                  />
+                </ng-template>
+              </td>
+              <td
+                (click)="editingCi !== 'drift' ? (editingCi = 'drift') : null"
+                style="cursor: pointer"
+              >
+                <ng-container *ngIf="editingCi !== 'drift'; else editDriftCi">
+                  {{ components[0]?.drift_ci }}
+                </ng-container>
+                <ng-template #editDriftCi>
+                  <input
+                    type="number"
+                    [(ngModel)]="components[0].drift_ci"
+                    (blur)="finishEditCi('drift')"
+                    (keydown.enter)="finishEditCi('drift')"
+                    style="width: 60px"
+                  />
+                </ng-template>
+              </td>
+              <td
+                (click)="editingCi !== 'rsu' ? (editingCi = 'rsu') : null"
+                style="cursor: pointer"
+              >
+                <ng-container *ngIf="editingCi !== 'rsu'; else editRsuCi">
+                  {{ components[0]?.rsu_ci }}
+                </ng-container>
+                <ng-template #editRsuCi>
+                  <input
+                    type="number"
+                    [(ngModel)]="components[0].rsu_ci"
+                    (blur)="finishEditCi('rsu')"
+                    (keydown.enter)="finishEditCi('rsu')"
+                    style="width: 60px"
+                  />
+                </ng-template>
+              </td>
+              <td
+                (click)="editingCi !== 'rss' ? (editingCi = 'rss') : null"
+                style="cursor: pointer"
+              >
+                <ng-container *ngIf="editingCi !== 'rss'; else editRssCi">
+                  {{ components[0]?.rss_ci }}
+                </ng-container>
+                <ng-template #editRssCi>
+                  <input
+                    type="number"
+                    [(ngModel)]="components[0].rss_ci"
+                    (blur)="finishEditCi('rss')"
+                    (keydown.enter)="finishEditCi('rss')"
+                    style="width: 60px"
+                  />
+                </ng-template>
+              </td>
+              <td
+                (click)="
+                  editingCi !== 'repeatability'
+                    ? (editingCi = 'repeatability')
+                    : null
+                "
+                style="cursor: pointer"
+              >
+                <ng-container
+                  *ngIf="
+                    editingCi !== 'repeatability';
+                    else editRepeatabilityCi
+                  "
+                >
+                  {{ components[0]?.repeatability_ci }}
+                </ng-container>
+                <ng-template #editRepeatabilityCi>
+                  <input
+                    type="number"
+                    [(ngModel)]="components[0].repeatability_ci"
+                    (blur)="finishEditCi('repeatability')"
+                    (keydown.enter)="finishEditCi('repeatability')"
+                    style="width: 60px"
+                  />
+                </ng-template>
+              </td>
+              <td
+                (click)="
+                  editingCi !== 'reproducibility'
+                    ? (editingCi = 'reproducibility')
+                    : null
+                "
+                style="cursor: pointer"
+              >
+                <ng-container
+                  *ngIf="
+                    editingCi !== 'reproducibility';
+                    else editReproducibilityCi
+                  "
+                >
+                  {{ components[0]?.reproducibility_ci }}
+                </ng-container>
+                <ng-template #editReproducibilityCi>
+                  <input
+                    type="number"
+                    [(ngModel)]="components[0].reproducibility_ci"
+                    (blur)="finishEditCi('reproducibility')"
+                    (keydown.enter)="finishEditCi('reproducibility')"
+                    style="width: 60px"
+                  />
+                </ng-template>
+              </td>
+            </tr>
+            <tr class="std-cond-header">
+              <!-- Si patron.length == 3, celdas vacías para alineación -->
+              <ng-container *ngIf="patron.length == 3">
+                <td></td>
+                <td></td>
+              </ng-container>
+              <th>Divisor</th>
+              <td>
+                {{ components[0]?.stability_div }}
+              </td>
+              <td>
+                {{ components[0]?.bias_div }}
+              </td>
+              <td>
+                {{ components[0]?.drift_div }}
+              </td>
+              <td>
+                {{ components[0]?.rsu_div }}
+              </td>
+              <td>
+                {{ components[0]?.rss_div }}
+              </td>
+              <td>
+                {{ components[0]?.repeatability_div }}
+              </td>
+              <td>
+                {{ components[0]?.reproducibility_div }}
+              </td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let value of dcVoltageValues">
+              <!-- Solo muestra la fila si hay datos para ese std_condition en todas las fechas (al menos 2 fechas) -->
+              <ng-container *ngIf="hasCmcDataForAtleastTwoDates(value.value)">
+                <!-- Si patron.length == 3, muestra las dos columnas -->
+                <ng-container *ngIf="patron.length == 3">
+                  <td>
+                    {{
+                      value.ratio_calibration != null
+                        ? value.ratio_calibration
+                        : value.ganancia
+                    }}
+                  </td>
+                  <td>
+                    {{
+                      value.porcentaje_ratio != null
+                        ? value.porcentaje_ratio
+                        : value.ratio
+                    }}
+                  </td>
+                </ng-container>
+                <td>{{ value.value }}</td>
+                <td>
+                  <!-- Stability[%] -->
+                  <ng-container
+                    *ngIf="stabilityByValue[getMatchKey(value)] !== null"
+                  >
+                    {{
+                      stabilityByValue[getMatchKey(value)] | number : "1.4-6"
+                    }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- BIAS[%] -->
+                  <ng-container
+                    *ngIf="biasByValue[getMatchKey(value)] !== null"
+                  >
+                    {{ biasByValue[getMatchKey(value)] | number : "1.3-3" }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- Drift[%] -->
+                  <ng-container
+                    *ngIf="driftByValue[getMatchKey(value)] !== null"
+                  >
+                    {{ driftByValue[getMatchKey(value)] | number : "1.5-5" }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- Reference Standard Uncertainty[%] -->
+                  <ng-container
+                    *ngIf="
+                      referenceUncertaintyByValue[getMatchKey(value)] !== null
+                    "
+                  >
+                    {{
+                      referenceUncertaintyByValue[getMatchKey(value)]
+                        | number : "1.4-4"
+                    }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- Reference Standard Stability[%] -->
+                  <ng-container
+                    *ngIf="
+                      referenceStabilityByValue[getMatchKey(value)] !== null
+                    "
+                  >
+                    {{
+                      referenceStabilityByValue[getMatchKey(value)]
+                        | number : "1.4-4"
+                    }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- Repeatability[%] -->
+                  {{
+                    repeatabilityByValue[getMatchKey(value)] | number : "1.4-6"
+                  }}
+                </td>
+                <td>
+                  <!-- Reproducibility[%] -->
+                  {{
+                    reproducibilityByValue[getMatchKey(value)]
+                      | number : "1.4-6"
+                  }}
+                </td>
+              </ng-container>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <br />
+      <!-- Tabla de Std Uncertainty -->
+      <div class="dynamic-table-container" style="margin: 0">
+        <table class="dynamic-table">
+          <thead>
+            <tr>
+              <th
+                [attr.colspan]="patron.length == 3 ? 11 : 9"
+                class="uncertainty-title-header"
+              >
+                Std Uncertainty <br />[ u(xi) ]
+              </th>
+            </tr>
+            <tr class="std-cond-header">
+              <!-- Si patron.length == 3, muestra las columnas extra -->
+              <ng-container *ngIf="patron.length == 3">
+                <th>
+                  {{
+                    dcVoltageValues[0].ratio_calibration != null
+                      ? "Ratio calibrado"
+                      : "Ganancia"
+                  }}
+                </th>
+                <th>
+                  {{
+                    dcVoltageValues[0].porcentaje_ratio != null
+                      ? "Porcentaje del ratio"
+                      : "Ratio"
+                  }}
+                </th>
+              </ng-container>
+              <th>Std. condition<br />Vpk</th>
+              <th>Stability[%]</th>
+              <th>BIAS[%]</th>
+              <th>Drift[%]</th>
+              <th>Reference Standard Uncertainty[%]</th>
+              <th>Reference Standard Stability[%]</th>
+              <th>Repeatability[%]</th>
+              <th>Reproducibility[%]</th>
+              <th>Combined Uncertainty (RSS method)[%]</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let value of dcVoltageValues">
+              <!-- Solo muestra la fila si hay datos para ese std_condition en todas las fechas (al menos 2 fechas) -->
+              <ng-container *ngIf="hasCmcDataForAtleastTwoDates(value.value)">
+                <!-- Si patron.length == 3, muestra las dos columnas -->
+                <ng-container *ngIf="patron.length == 3">
+                  <td>
+                    {{
+                      value.ratio_calibration != null
+                        ? value.ratio_calibration
+                        : value.ganancia
+                    }}
+                  </td>
+                  <td>
+                    {{
+                      value.porcentaje_ratio != null
+                        ? value.porcentaje_ratio
+                        : value.ratio
+                    }}
+                  </td>
+                </ng-container>
+                <td>{{ value.value }}</td>
+                <td>
+                  <!-- Stability[%] -->
+                  <ng-container
+                    *ngIf="stdstabilityByValue[getMatchKey(value)] !== null"
+                  >
+                    {{
+                      stdstabilityByValue[getMatchKey(value)] | number : "1.4-9"
+                    }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- BIAS[%] -->
+                  <ng-container
+                    *ngIf="stdbiasByValue[getMatchKey(value)] !== null"
+                  >
+                    {{ stdbiasByValue[getMatchKey(value)] | number : "1.3-9" }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- Drift[%] -->
+                  <ng-container
+                    *ngIf="stddriftByValue[getMatchKey(value)] !== null"
+                  >
+                    {{ stddriftByValue[getMatchKey(value)] | number : "1.5-9" }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- Reference Standard Uncertainty[%] -->
+                  <ng-container
+                    *ngIf="
+                      stdreferenceUncertaintyByValue[getMatchKey(value)] !==
+                      null
+                    "
+                  >
+                    {{
+                      stdreferenceUncertaintyByValue[getMatchKey(value)]
+                        | number : "1.4-9"
+                    }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- Reference Standard Stability[%] -->
+                  <ng-container
+                    *ngIf="
+                      stdreferenceStabilityByValue[getMatchKey(value)] !== null
+                    "
+                  >
+                    {{
+                      stdreferenceStabilityByValue[getMatchKey(value)]
+                        | number : "1.4-9"
+                    }}
+                  </ng-container>
+                </td>
+                <td>
+                  <!-- Repeatability[%] -->
+                  {{
+                    stdrepeatabilityByValue[getMatchKey(value)]
+                      | number : "1.4-6"
+                  }}
+                </td>
+                <td>
+                  <!-- Reproducibility[%] -->
+                  {{
+                    stdreproducibilityByValue[getMatchKey(value)]
+                      | number : "1.4-6"
+                  }}
+                </td>
+                <td>
+                  <!-- Combined Uncertainty -->
+                  {{ combined[getMatchKey(value)] | number : "1.4-9" }}
+                </td>
+              </ng-container>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <br />
+    </ng-container>
+  </div>
+</div>
+<!-- Modal para el formulario de nuevo certificado -->
+<ng-container *ngIf="showNewCalibrationModal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <app-new-calibration
+      [equipos]="modalData.equipos"
+      [pts]="modalData.pts"
+      [ids]="modalData.ids"
+      (close)="closeNewCalibrationModal()"
+    ></app-new-calibration>
+  </div>
+</ng-container>

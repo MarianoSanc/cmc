@@ -1,0 +1,93 @@
+/* Estilo para el contenedor del icono de notificación */
+.notification-icon-container {
+  position: relative;
+  display: inline-block;
+  margin-left: auto;
+  margin-right: 20px;
+  cursor: pointer; /* Cambiar el cursor para indicar que es clickeable */
+}
+
+.notification-icon-container i {
+  font-size: 24px; /* Ajusta el tamaño del icono */
+  color: white;    /* Color del icono */
+}
+
+/* Contador de notificaciones */
+.notification-count {
+  position: absolute;
+  top: -2px; /* Ajusta la posición del contador */
+  right: -2px; /* Ajusta la posición del contador */
+  background-color: red;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 4px;  /* Reduzco más el padding para hacer el círculo más pequeño */
+  font-size: 10px;   /* Disminuyo aún más el tamaño de la fuente */
+  font-weight: bold;
+  min-width: 14px;   /* Ajusta el ancho mínimo del círculo */
+  min-height: 14px;  /* Ajusta la altura mínima del círculo */
+  display: flex;
+  justify-content: center;
+  align-items: center; /* Centra el número dentro del círculo */
+}
+
+
+
+/* Estilo para la lista desplegable de notificaciones */
+.notification-dropdown {
+  position: absolute;
+  top: 30px; /* Ajustar la posición debajo del icono */
+  right: 0;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  width: 250px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10; /* Asegura que esté sobre otros elementos */
+  max-height: 300px;
+  overflow-y: auto; /* Si hay muchas tareas, habilita el scroll */
+}
+
+.notification-dropdown ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.notification-dropdown li {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.notification-dropdown li:last-child {
+  border-bottom: none;
+}
+
+.notification-dropdown li:hover {
+  background-color: #f1f1f1;
+}
+
+.notification-dropdown div {
+  display: flex;
+  justify-content: space-between;
+}
+
+
+.notification-dropdown li {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  background-color: #f9f9f9; /* Fallback color */
+}
+
+.notification-dropdown li:hover {
+  background-color: #f1f1f1;
+}
+
+
+.notification-dropdown li:last-child {
+  border-bottom: none;
+}
+
+/* Aquí puedes personalizar el color de las tareas vencidas */
+.notification-dropdown li[ngStyle] {
+  background-color: rgba(255, 0, 0, 0.1); /* Fondo rojo claro */
+}

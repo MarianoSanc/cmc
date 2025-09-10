@@ -1,0 +1,157 @@
+.filters-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 32px;
+  margin: 40px 0 20px 0;
+  flex-direction: row; /* Asegúrate de que los elementos estén en fila */
+}
+
+.button_new {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* flex-direction: column; Se eliminó para evitar que el botón se apile debajo */
+}
+
+.ng-multiselect-dropdown,
+.ng-multiselect-dropdown .dropdown-list {
+  width: 400px !important;
+  min-width: 400px !important;
+  max-width: 400px !important;
+  box-sizing: border-box;
+}
+
+.custom-button {
+  margin-top: 0;
+  width: 220px;
+}
+
+@media (max-width: 900px) {
+  .filters-container {
+    flex-direction: column;
+    gap: 20px;
+  }
+  .ng-multiselect-dropdown,
+  .ng-multiselect-dropdown .dropdown-list {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  .custom-button {
+    width: 100%;
+  }
+}
+
+.patron-table-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.patron-table {
+  border-collapse: collapse;
+  min-width: 400px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.patron-table th,
+.patron-table td {
+  border: 1px solid #ddd;
+  padding: 10px 18px;
+  text-align: center;
+}
+
+.patron-table th {
+  background: #f4f4f4;
+  font-weight: bold;
+}
+
+.patron-table tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+.dynamic-table-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.dynamic-table {
+  border-collapse: collapse;
+  min-width: 180px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.dynamic-table th,
+.dynamic-table td {
+  border: 1px solid #ddd;
+  padding: 10px 18px;
+  text-align: center;
+}
+
+.dc-header {
+  background: #868686;
+  color: #fff;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.std-cond-header {
+  background: #fcff5ea8;
+  font-weight: bold;
+}
+
+.vpk-header {
+  background: #fcff5ea8;
+  font-weight: bold;
+}
+
+.date-header {
+  background: #fcff5ea8;
+  font-weight: bold;
+  font-size: 1.1em;
+  text-align: center;
+}
+
+.uncertainty-header {
+  background: #f4f4f4;
+  font-weight: bold;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.uncertainty-title-header {
+  background: #868686;
+  color: #fff;
+  font-weight: bold;
+  font-size: 1.1em;
+  text-align: center;
+}
+
+/* Asegura que el modal-content esté por encima del backdrop */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+.modal-content {
+  z-index: 1100; /* Asegura que esté por encima del backdrop */
+  background: #fff !important; /* Fuerza fondo blanco */
+}
+
+.fixed-width-dropdown {
+  width: 300px; /* Ajusta este valor a lo que necesites */
+}
+
+.fixed-width-dropdown .dropdown-btn {
+  width: 100%;
+  min-width: 100%;
+}

@@ -1,0 +1,105 @@
+<div class="modal-content" [class.patron-length-3]="patron.length == 3">
+  <button class="modal-close-btn" type="button" (click)="close.emit()">
+    &times;
+  </button>
+  <h2>Nuevo Certificado</h2>
+  <form [formGroup]="calibrationForm" (ngSubmit)="submit()">
+    <div class="form-row">
+      <label for="equipo">Patron:</label>
+      <ng-multiselect-dropdown
+        [settings]="dropdowncmc"
+        [placeholder]="'Seleccione patron'"
+        [data]="equipos"
+        formControlName="equipo"
+        class="form-select"
+        (ngModelChange)="cargarNiveles()"
+      >
+      </ng-multiselect-dropdown>
+    </div>
+    <div class="form-row">
+      <label for="pt">PT:</label>
+      <select
+        id="pt"
+        formControlName="pt"
+        required
+        class="form-select"
+        (change)="cargarNiveles()"
+      >
+        <option value="">Seleccione PT</option>
+        <option value="PT-23">PT-23</option>
+        <option value="PT-24">PT-24</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="fecha">Fecha:</label>
+      <input
+        id="fecha"
+        type="date"
+        formControlName="fecha"
+        required
+        class="form-select"
+      />
+    </div>
+    <div formArrayName="valores">
+      <table>
+        <thead>
+          <tr>
+            <!-- Si patron.length == 3, muestra las columnas extra -->
+            <ng-container *ngIf="patron.length == 3">
+              <th>
+                {{
+                  dcVoltageValues.length > 0 &&
+                  dcVoltageValues[0].ratio_calibration != null
+                    ? "Ratio calibrado"
+                    : "Ganancia"
+                }}
+              </th>
+              <th>
+                {{
+                  dcVoltageValues.length > 0 &&
+                  dcVoltageValues[0].porcentaje_ratio != null
+                    ? "Porcentaje del ratio"
+                    : "Ratio"
+                }}
+              </th>
+            </ng-container>
+            <th>Std. condition (Vpk)</th>
+            <th>Error[%]</th>
+            <th>Calibration Uncertainty[%]</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let valCtrl of valores.controls; let i = index"
+            [formGroupName]="i"
+          >
+            <ng-container *ngIf="patron.length == 3">
+              <td>
+                {{
+                  dcVoltageValues[i].ratio_calibration != null
+                    ? dcVoltageValues[i].ratio_calibration
+                    : dcVoltageValues[i].ganancia
+                }}
+              </td>
+              <td>
+                {{
+                  dcVoltageValues[i].porcentaje_ratio != null
+                    ? dcVoltageValues[i].porcentaje_ratio
+                    : dcVoltageValues[i].ratio
+                }}
+              </td>
+            </ng-container>
+            <td>{{ valCtrl.get("std_condition")?.value }}</td>
+            <td>
+              <input type="number" formControlName="error" />
+            </td>
+            <td>
+              <input type="number" formControlName="cu" />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <button type="submit" [disabled]="calibrationForm.invalid">Guardar</button>
+  </form>
+</div>
