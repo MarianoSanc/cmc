@@ -98,6 +98,10 @@ export class CmcComponent {
   stdreproducibilityByValue: { [key: string]: number | null } = {};
   combined: { [key: string]: number | null } = {};
 
+  // --- U comb edición y eliminación con confirmación ---
+  editingUComb: { [id: string]: { [field: string]: boolean } } = {};
+  editingUCombBackup: { [id: string]: { [field: string]: any } } = {};
+
   showNewCalibrationModal = false;
 
   modalData = {
@@ -298,6 +302,9 @@ export class CmcComponent {
     await this.levelsCmc();
     // Luego agrupa y calcula
     await this.groupCmcByDate();
+
+    // Cargar U comb para el patrón y PT seleccionados
+    this.loadUCombList();
 
     // Carga los componentes del PT seleccionado (si es single select, usa selectedPT[0])
     let ptValue = '';
@@ -859,6 +866,8 @@ export class CmcComponent {
 
     console.log('Registro a modificar:', registro);
 
+    return;
+
     Swal.fire({
       title: 'Procesando datos',
       text: 'Espera un momento',
@@ -1254,4 +1263,446 @@ export class CmcComponent {
       }
     );
   }
+
+  // Guarda o actualiza los registros de cmc_registeruc para la última tabla mostrada
+  guardarActualizarCmc() {
+    if (!this.selectedCmc.length || !this.selectedPT.length) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Faltan datos',
+        text: 'Selecciona un patrón y un PT antes de guardar.',
+      });
+      return;
+    }
+
+    const patron = this.selectedCmc[0].name;
+    const pt = this.selectedPT[0].pt;
+    const registros: any[] = [];
+
+    // Mapear cada fila visible en la tabla de incertidumbre estándar
+    this.dcVoltageValues.forEach((value) => {
+      // Solo guardar si la fila está visible (es decir, tiene combined uncertainty calculada)
+      let valueKey = value.value;
+      let std_dif = null;
+      if (this.patron.length === 3) {
+        if (value.ratio_calibration != null) {
+          std_dif = `${value.ratio_calibration}-${value.porcentaje_ratio}`;
+        } else if (value.ganancia != null) {
+          std_dif = `${value.ganancia}-${value.ratio}`;
+        }
+        valueKey = `${value.value}|${std_dif}`;
+      }
+
+      // Solo si la fila está visible (tiene combined uncertainty)
+      if (
+        this.combined[valueKey] !== null &&
+        this.combined[valueKey] !== undefined
+      ) {
+        // Extract numeric value from value.value (e.g., '+1.0 kV' -> 1.0)
+        let stdConditionInt = null;
+        if (typeof value.value === 'string') {
+          // Remove 'kV', trim, and parse float
+          stdConditionInt = parseFloat(
+            value.value
+              .replace('kV', '')
+              .replace('+', '')
+              .replace('-', '-')
+              .trim()
+          );
+        } else {
+          stdConditionInt = value.value;
+        }
+
+        // Solo incluir std_dif en el filtro, no en los atributos si no existe en la BD
+        const registro: any = {
+          patron,
+          pt,
+          std_condition: stdConditionInt,
+          stability: this.stdstabilityByValue[valueKey],
+          drift: this.stddriftByValue[valueKey],
+          rsu: this.stdreferenceUncertaintyByValue[valueKey],
+          rss: this.stdreferenceStabilityByValue[valueKey],
+          repeatability: this.stdrepeatabilityByValue[valueKey],
+          reproducibility: this.stdreproducibilityByValue[valueKey],
+          cu: this.combined[valueKey],
+        };
+        // Solo agregar bias si tiene valor válido
+        const biasValue = this.stdbiasByValue[valueKey];
+        if (biasValue !== null && biasValue !== undefined) {
+          registro.bias = biasValue;
+        }
+        registros.push(registro);
+      }
+    });
+
+    if (!registros.length) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Nada que guardar',
+        text: 'No hay datos para guardar o actualizar.',
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: 'Guardando datos',
+      text: 'Por favor espera...',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    // 2. Por cada registro, consultar la BD y decidir update/create
+    const acciones = registros.map((reg) => {
+      // Armar filtro de búsqueda
+      const where: any = {
+        patron: reg.patron,
+        pt: reg.pt,
+        std_condition: reg.std_condition,
+      };
+      // GET a la BD
+      return this.backend
+        .post(
+          {
+            action: 'get',
+            bd: this.database,
+            table: 'cmc_registeruc',
+            opts: { where },
+          },
+          UrlClass.URLNuevo
+        )
+        .toPromise()
+        .then((resp: any) => {
+          const existe = Array.isArray(resp.result) && resp.result.length > 0;
+          const regToSave = { ...reg };
+          if (existe) {
+            // UPDATE
+            const id = resp.result[0].id;
+            console.log('Existe en BD, actualizando:', { ...regToSave, id });
+            return this.backend
+              .post(
+                {
+                  action: 'update',
+                  bd: this.database,
+                  table: 'cmc_registeruc',
+                  opts: {
+                    attributes: regToSave,
+                    where: { id },
+                  },
+                },
+                UrlClass.URLNuevo
+              )
+              .toPromise();
+          } else {
+            // CREATE
+            delete regToSave.id;
+            return this.backend
+              .post(
+                {
+                  action: 'create',
+                  bd: this.database,
+                  table: 'cmc_registeruc',
+                  opts: { attributes: regToSave },
+                },
+                UrlClass.URLNuevo
+              )
+              .toPromise();
+          }
+        });
+    });
+
+    Promise.all(acciones)
+      .then((responses) => {
+        Swal.close();
+        if (responses.every((r: any) => r && r.result)) {
+          Swal.fire({
+            icon: 'success',
+            title: '¡Guardado!',
+            text: 'Los datos se han guardado/actualizado correctamente.',
+            timer: 2500,
+            showConfirmButton: false,
+            position: 'top-end',
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Ocurrió un problema al guardar algunos registros.',
+          });
+        }
+      })
+      .catch(() => {
+        Swal.close();
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un problema en la petición.',
+        });
+      });
+  }
+
+  // --- U comb table state and modal ---
+  uCombList: any[] = [];
+  showUCombModal = false;
+  uCombForm = { u_scope: '', min: '', max: '' };
+
+  openUCombModal() {
+    this.uCombForm = { u_scope: '', min: '', max: '' };
+    this.showUCombModal = true;
+  }
+
+  closeUCombModal() {
+    this.showUCombModal = false;
+  }
+
+  saveUComb() {
+    if (!this.selectedCmc.length || !this.selectedPT.length) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Faltan datos',
+        text: 'Selecciona un patrón y un PT antes de guardar.',
+      });
+      return;
+    }
+    const patron = this.selectedCmc[0].name;
+    const pt = this.selectedPT[0].pt;
+    const newUComb = {
+      patron,
+      pt,
+      u_scope: this.uCombForm.u_scope,
+      min: this.uCombForm.min,
+      max: this.uCombForm.max,
+    };
+    this.backend
+      .post(
+        {
+          action: 'create',
+          bd: this.database,
+          table: 'cmc_u_comb',
+          opts: { attributes: newUComb },
+        },
+        UrlClass.URLNuevo
+      )
+      .subscribe(
+        (response: any) => {
+          if (response.result) {
+            Swal.fire({
+              icon: 'success',
+              title: '¡Guardado!',
+              text: 'Registro guardado correctamente.',
+              timer: 2000,
+              showConfirmButton: false,
+              position: 'top-end',
+            });
+            this.loadUCombList();
+            this.closeUCombModal();
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'No se pudo guardar.',
+            });
+          }
+        },
+        (error) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Ocurrió un problema en la petición.',
+          });
+        }
+      );
+  }
+
+  loadUCombList() {
+    if (!this.selectedCmc.length || !this.selectedPT.length) {
+      this.uCombList = [];
+      return;
+    }
+    const patron = this.selectedCmc[0].name;
+    const pt = this.selectedPT[0].pt;
+    this.backend
+      .post(
+        {
+          action: 'get',
+          bd: this.database,
+          table: 'cmc_u_comb',
+          opts: { where: { patron, pt } },
+        },
+        UrlClass.URLNuevo
+      )
+      .subscribe((response: any) => {
+        this.uCombList = response.result || [];
+      });
+  }
+
+  editUComb(row: any, field: string) {
+    if (!this.editingUComb[row.id]) this.editingUComb[row.id] = {};
+    this.editingUComb[row.id][field] = true;
+    // Backup valor original
+    if (!this.editingUCombBackup[row.id]) this.editingUCombBackup[row.id] = {};
+    this.editingUCombBackup[row.id][field] = row[field];
+  }
+
+  isEditingUComb(row: any, field: string) {
+    return this.editingUComb[row.id] && this.editingUComb[row.id][field];
+  }
+
+  finishEditUComb(row: any, field: string) {
+    if (!this.editingUComb[row.id] || !this.editingUComb[row.id][field]) return;
+    const oldValue = this.editingUCombBackup[row.id][field];
+    const newValue = row[field];
+    if (oldValue === newValue) {
+      this.editingUComb[row.id][field] = false;
+      return;
+    }
+    Swal.fire({
+      title: '¿Guardar cambio?',
+      text: `¿Deseas guardar el nuevo valor para "${field}"?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, guardar',
+      cancelButtonText: 'Cancelar',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.backend
+          .post(
+            {
+              action: 'update',
+              bd: this.database,
+              table: 'cmc_u_comb',
+              opts: {
+                attributes: { [field]: row[field] },
+                where: { id: row.id },
+              },
+            },
+            UrlClass.URLNuevo
+          )
+          .subscribe((response: any) => {
+            if (!response.result) {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo actualizar.',
+              });
+              row[field] = oldValue;
+            } else {
+              Swal.fire({
+                icon: 'success',
+                title: 'Actualizado',
+                text: 'El valor fue actualizado.',
+              });
+            }
+            this.loadUCombList();
+          });
+      } else {
+        row[field] = oldValue;
+      }
+      this.editingUComb[row.id][field] = false;
+    });
+  }
+
+  deleteUComb(row: any) {
+    Swal.fire({
+      title: '¿Eliminar registro?',
+      text: 'Esta acción marcará el registro como eliminado.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.backend
+          .post(
+            {
+              action: 'update',
+              bd: this.database,
+              table: 'cmc_u_comb',
+              opts: {
+                attributes: { deleted: 1 },
+                where: { id: row.id },
+              },
+            },
+            UrlClass.URLNuevo
+          )
+          .subscribe((response: any) => {
+            if (response.result) {
+              Swal.fire({
+                icon: 'success',
+                title: 'Eliminado',
+                text: 'Registro eliminado.',
+              });
+              this.loadUCombList();
+            } else {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo eliminar.',
+              });
+            }
+          });
+      }
+    });
+  }
+
+  editingNonLinearity: boolean = false;
+
+  editNonLinearity() {
+    this.editingNonLinearity = true;
+    // Backup por si cancela (opcional)
+    this._nonLinearityBackup = this.components[0]?.non_linearity;
+  }
+
+  finishEditNonLinearity() {
+    if (!this.editingNonLinearity) return;
+    this.editingNonLinearity = false;
+    const newValue = this.components[0]?.non_linearity;
+    if (this._nonLinearityBackup === newValue) return;
+    Swal.fire({
+      title: '¿Guardar cambio?',
+      text: `¿Deseas guardar el nuevo valor de Non linearity effect?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, guardar',
+      cancelButtonText: 'Cancelar',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.backend
+          .post(
+            {
+              action: 'update',
+              bd: this.database,
+              table: 'cmc_uncertaintycomponents',
+              opts: {
+                attributes: { non_linearity: newValue },
+                where: { id: this.components[0]?.id },
+              },
+            },
+            UrlClass.URLNuevo
+          )
+          .subscribe((response: any) => {
+            if (!response.result) {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo actualizar.',
+              });
+              this.components[0].non_linearity = this._nonLinearityBackup;
+            } else {
+              Swal.fire({
+                icon: 'success',
+                title: 'Actualizado',
+                text: 'El valor fue actualizado.',
+              });
+            }
+          });
+      } else {
+        this.components[0].non_linearity = this._nonLinearityBackup;
+      }
+    });
+  }
+
+  private _nonLinearityBackup: number | null = null;
 }
