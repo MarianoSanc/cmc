@@ -27,7 +27,7 @@ export class CmcComponent {
   constructor(
     private backend: ApiService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
   ) {}
 
   isTesting: boolean = false; // Definir el entorno de pruebas
@@ -201,7 +201,7 @@ export class CmcComponent {
         'Acceso correcto. Bienvenid@ ' +
           this.user[0].first_name +
           ' ' +
-          this.user[0].last_name
+          this.user[0].last_name,
       );
     }
   }
@@ -278,7 +278,7 @@ export class CmcComponent {
             }
             console.log(
               `Patron para ${id} en índice ${index}`,
-              response['result']
+              response['result'],
             );
             resolve();
           });
@@ -321,7 +321,7 @@ export class CmcComponent {
     }
     const components = {
       action: 'get',
-      bd: this.database,
+      bd: 'hvtest2',
       table: 'cmc_uncertaintycomponents',
       opts: { where: { id_equipment: id, pt: ptValue } },
     };
@@ -450,7 +450,7 @@ export class CmcComponent {
 
       // Busca el match que tenga el std_dif correcto
       const exactMatch = baseMatch.find(
-        (item: any) => item.std_dif === expectedStdDif
+        (item: any) => item.std_dif === expectedStdDif,
       );
       return exactMatch || baseMatch[0];
     }
@@ -652,7 +652,7 @@ export class CmcComponent {
           ci && div ? (rss * ci) / div : null;
 
         combinedUncertainty += safeSquare(
-          this.stdreferenceStabilityByValue[valueKey]
+          this.stdreferenceStabilityByValue[valueKey],
         );
       } else {
         this.referenceStabilityByValue[valueKey] = null;
@@ -763,7 +763,7 @@ export class CmcComponent {
         ciRsu && divRsu && refUnc !== null ? (refUnc * ciRsu) / divRsu : null;
 
       combinedUncertainty += safeSquare(
-        this.stdreferenceUncertaintyByValue[valueKey]
+        this.stdreferenceUncertaintyByValue[valueKey],
       );
 
       // === Repeatability y Reproducibility ===
@@ -787,7 +787,7 @@ export class CmcComponent {
           : null;
 
       combinedUncertainty += safeSquare(
-        this.stdreproducibilityByValue[valueKey]
+        this.stdreproducibilityByValue[valueKey],
       );
 
       // === Resultado final ===
@@ -907,7 +907,7 @@ export class CmcComponent {
           title: 'Error',
           text: 'Ocurrió un problema en la petición.',
         });
-      }
+      },
     );
   }
 
@@ -934,7 +934,7 @@ export class CmcComponent {
     if (lastCalibration && item.months) {
       newNextCalibration = new Date(lastCalibration);
       newNextCalibration.setMonth(
-        newNextCalibration.getMonth() + Number(item.months)
+        newNextCalibration.getMonth() + Number(item.months),
       );
     }
 
@@ -997,7 +997,7 @@ export class CmcComponent {
           title: 'Error',
           text: 'Ocurrió un problema en la petición.',
         });
-      }
+      },
     );
   }
 
@@ -1072,7 +1072,7 @@ export class CmcComponent {
           title: 'Error',
           text: 'Ocurrió un problema en la petición.',
         });
-      }
+      },
     );
   }
 
@@ -1096,7 +1096,7 @@ export class CmcComponent {
 
     // Extraer solo el número de stdCondition
     const numericStdCondition = parseFloat(
-      stdCondition.replace(/[^\d.-]/g, '')
+      stdCondition.replace(/[^\d.-]/g, ''),
     );
 
     // Preparar atributos base
@@ -1155,7 +1155,7 @@ export class CmcComponent {
           title: 'Error',
           text: 'Ocurrió un problema en la petición.',
         });
-      }
+      },
     );
   }
 
@@ -1260,7 +1260,7 @@ export class CmcComponent {
           title: 'Error',
           text: 'Ocurrió un problema en la petición.',
         });
-      }
+      },
     );
   }
 
@@ -1307,7 +1307,7 @@ export class CmcComponent {
               .replace('kV', '')
               .replace('+', '')
               .replace('-', '-')
-              .trim()
+              .trim(),
           );
         } else {
           stdConditionInt = value.value;
@@ -1371,7 +1371,7 @@ export class CmcComponent {
             table: 'cmc_registeruc',
             opts: { where },
           },
-          UrlClass.URLNuevo
+          UrlClass.URLNuevo,
         )
         .toPromise()
         .then((resp: any) => {
@@ -1392,7 +1392,7 @@ export class CmcComponent {
                     where: { id },
                   },
                 },
-                UrlClass.URLNuevo
+                UrlClass.URLNuevo,
               )
               .toPromise();
           } else {
@@ -1406,7 +1406,7 @@ export class CmcComponent {
                   table: 'cmc_registeruc',
                   opts: { attributes: regToSave },
                 },
-                UrlClass.URLNuevo
+                UrlClass.URLNuevo,
               )
               .toPromise();
           }
@@ -1483,7 +1483,7 @@ export class CmcComponent {
           table: 'cmc_u_comb',
           opts: { attributes: newUComb },
         },
-        UrlClass.URLNuevo
+        UrlClass.URLNuevo,
       )
       .subscribe(
         (response: any) => {
@@ -1512,7 +1512,7 @@ export class CmcComponent {
             title: 'Error',
             text: 'Ocurrió un problema en la petición.',
           });
-        }
+        },
       );
   }
 
@@ -1531,7 +1531,7 @@ export class CmcComponent {
           table: 'cmc_u_comb',
           opts: { where: { patron, pt } },
         },
-        UrlClass.URLNuevo
+        UrlClass.URLNuevo,
       )
       .subscribe((response: any) => {
         this.uCombList = response.result || [];
@@ -1578,7 +1578,7 @@ export class CmcComponent {
                 where: { id: row.id },
               },
             },
-            UrlClass.URLNuevo
+            UrlClass.URLNuevo,
           )
           .subscribe((response: any) => {
             if (!response.result) {
@@ -1625,7 +1625,7 @@ export class CmcComponent {
                 where: { id: row.id },
               },
             },
-            UrlClass.URLNuevo
+            UrlClass.URLNuevo,
           )
           .subscribe((response: any) => {
             if (response.result) {
@@ -1680,7 +1680,7 @@ export class CmcComponent {
                 where: { id: this.components[0]?.id },
               },
             },
-            UrlClass.URLNuevo
+            UrlClass.URLNuevo,
           )
           .subscribe((response: any) => {
             if (!response.result) {
